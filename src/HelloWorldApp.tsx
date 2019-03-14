@@ -1,38 +1,61 @@
 import {AppDefinition} from './DevelopmentEnvironment';
 import React from 'react';
 
+import { HeadingUnit, _HEADING_TEXT, _HEADING_STYLE } from './basic-units/typography.tsx';
+import { InputUnit, _INPUT_VALUE, _INPUT_SETTER } from './basic-units/inputs.tsx';
+
+const _HEADING = Symbol("Heading");
+const _INPUT_UNIT = Symbol("Input Unit");
+
 const _DEFAULT_NAME_PROP = Symbol("Default Name");
 
 const _HELLO_WORLD_UNIT = Symbol("Hello World Unit");
 const _HELLO_WORLD_NAME = Symbol("Hello World's name");
 
-const _GREETING_UNIT = Symbol("Hello Message");
+const _GREETING_UNIT = Symbol("Greeting Unit");
 const _GREETING_NAME_PROP = Symbol("name");
 const _NAME_SPLITTER_HOOK = Symbol("Name Splitter Hook");
 const GreetingComponent = ({name}) => <h1>Hello, {name}!</h1>;
 
 const _TEXT_INPUT = Symbol("Text Input");
-const _TEXT_INPUT_VALUE = Symbol("Text Input Value");
-const _TEXT_INPUT_SETTER = Symbol("Text Input Setter");
-const TextInput = ({value, setter}) => <input value={value} onChange={(e) => setter(e.target.value)}></input>;
+
+const _UNIT_DISPLAY_UNIT = Symbol("Unit Display Unit")
+const _UNIT_DISPLAY_EDITOR_HOOK = Symbol("Unit Display Editor Hook")
+
+const DisplayUnitsComponent = ({units}) => {
+  return units.map(() => {
+    
+  })
+};
 
 const app: AppDefinition = {
   styles: {},
   units: {
-    [_TEXT_INPUT]: {
-      props: {
-        [_TEXT_INPUT_VALUE]: { defaultValue: null },
-        [_TEXT_INPUT_SETTER]: { defaultValue: null }
-      },
-      component: {
-        component: TextInput,
-        classNames: [],
-        props: {
-          "value": { kind: "prop", key: _TEXT_INPUT_VALUE },
-          "setter": { kind: "prop", key: _TEXT_INPUT_SETTER }
+    [_HEADING]: HeadingUnit,
+    [_INPUT_UNIT]: InputUnit,
+    [_UNIT_DISPLAY_UNIT]: {
+      props: {},
+      hooks: [{
+        key: _UNIT_DISPLAY_EDITOR_HOOK,
+        hook: ({editor: {editor, usageEditor}}) => {
+          return {units: editor.units.map((u) => u.toString())}
+        },
+        params: {
+          "editor": {kind: "editor"}
         }
-      },
-      children: []
+      }],
+      children: [
+        {
+          kind: "repeat",
+          repeat: {
+            unit: _HEADING,
+            props: {}
+          },
+          each: {kind: "hookValue", hook: _UNIT_DISPLAY_EDITOR_HOOK, key: "units"},
+          as: _HEADING_TEXT
+        }
+      ]
+
     },
     [_GREETING_UNIT]: {
       props: {
@@ -41,23 +64,24 @@ const app: AppDefinition = {
       hooks: [
         {
           key: _NAME_SPLITTER_HOOK,
-          hook: ({name}) => {
-            const [firstName, lastName] = name.split(" ");
-            return {firstName, lastName}
+          hook: ({fullName}) => {
+            const [firstName, lastName] = fullName.split(" ");
+
+            return {greeting: `Hello, ${firstName}!`, test: "foobar"}
           },
           params: {
-            "name": { kind: "prop", key: _GREETING_NAME_PROP }
+            "fullName": { kind: "prop", key: _GREETING_NAME_PROP }
           }
         }
       ],
-      component: {
-        component: GreetingComponent,
-        classNames: [],
-        props: {
-          "name": { kind: "hookValue", hook: _NAME_SPLITTER_HOOK, key: "firstName" }
+      children: [
+        {
+          unit: _HEADING,
+          props: {
+            [_HEADING_TEXT]: { kind: "hookValue", hook: _NAME_SPLITTER_HOOK, key: "greeting" }
+          }
         }
-      },
-      children: []
+      ]
     },
     [_HELLO_WORLD_UNIT]: {
       props: {
@@ -76,10 +100,10 @@ const app: AppDefinition = {
           }
         },
         {
-          unit: _TEXT_INPUT,
+          unit: _INPUT_UNIT,
           props: {
-            [_TEXT_INPUT_VALUE]: { kind: "state", key: _HELLO_WORLD_NAME },
-            [_TEXT_INPUT_SETTER]: { kind: "stateSetter", key: _HELLO_WORLD_NAME }
+            [_INPUT_VALUE]: { kind: "state", key: _HELLO_WORLD_NAME },
+            [_INPUT_SETTER]: { kind: "stateSetter", key: _HELLO_WORLD_NAME }
           }
         }
       ]
@@ -91,6 +115,10 @@ const app: AppDefinition = {
       props: {
         [_DEFAULT_NAME_PROP]: { kind: "constant", constant: "World" }
       }
+    },
+    {
+      unit: _UNIT_DISPLAY_UNIT,
+      props: {}
     }
   ]
 }

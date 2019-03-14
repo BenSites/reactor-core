@@ -2,8 +2,9 @@ import React, { useState, useMemo, useEffect } from 'react';
 import jss from 'jss';
 import preset from 'jss-preset-default'
 
-import {Unit, makeUnit, ValueDefinitionsForChildParameters, UnitDefinition, UnitRootUsageDefinition} from './Unit.tsx';
+import {Unit, makeUnit, ValueDefinitionsForChildParameters, UnitDefinition, UnitRootUsageDefinition, PropsDefinition} from './Unit.tsx';
 import base from './HelloWorldApp.tsx';
+import { UnitChildDefinition } from './Unit';
 
 jss.setup(preset())
 
@@ -32,18 +33,22 @@ const useJSSStyles = (initialStyles) => {
 interface Editor {
   editing: boolean;
   setEditing: (boolean) => void;
-
-  selected: boolean;
-  select: () => void;
 }
 
 interface UnitEditor extends Editor {
+  units: symbol[]
+
   setDefinition: (newDefinition: UnitDefinition) => void;
   _forChild: (childIndex: number) => UnitUsageEditor
 }
 
 interface UnitUsageEditor extends Editor {
-  setParameters: (newValues: ValueDefinitionsForChildParameters) => void;
+  readonly propsDefinition: PropsDefinition;
+
+  childDefinition?: UnitChildDefinition;
+  setChildDefinition?: (newDefinition: UnitChildDefinition) => void;
+
+  setProps: (newValues: ValueDefinitionsForChildParameters) => void;
 }
 
 const DevelopmentEnvironment = () => {
@@ -52,8 +57,6 @@ const DevelopmentEnvironment = () => {
   const classes = useJSSStyles(app.styles);
 
   const [editing, setEditing] = useState(true);
-  const [selectedUnit, selectUnit] = useState(null);
-  const [selectedUnitUsage, selectUnitUsage] = useState(null);
   
   const units = Object.getOwnPropertySymbols(app.units).reduce((obj, key) => {
     const definition: UnitDefinition = app.units[key];
@@ -64,32 +67,41 @@ const DevelopmentEnvironment = () => {
     
     const editor: UnitEditor = {
       editing, setEditing,
-      select: () => { selectUnit(key) }, selected: selectedUnit === key,
+
+      units: Object.getOwnPropertySymbols(app.units),
       setDefinition: setDefinition,
 
       _forChild: (childIndex: number): UnitUsageEditor => {
+        const childDefinition = definition.children[childIndex];
+        const childUnitSymbol = (childDefinition.kind == "repeat") ? childDefinition.repeat.unit : childDefinition.unit;
+        const childUnitDefinition = app.units[childUnitSymbol];
+
+        const setChildDefinition = (newDefinition) => {
+          let children = definition.children.slice();
+          children[childIndex] = newDefinition;
+          setDefinition({...definition, children: children})
+        }
+
         return {
           editing, setEditing,
-          select: () => { selectUnit(key); selectUnitUsage(childIndex) },
-          selected: selectedUnit === key && selectedUnitUsage === childIndex,
+          
+          childDefinition: childDefinition,
+          setChildDefinition,
 
-          setParameters(newValues: ValueDefinitionsForChildParameters) {
-            let children = definition.children.slice();
+          propsDefinition: childUnitDefinition.propsDefinition,
+          setProps(newValues: ValueDefinitionsForChildParameters) {
             let child = definition.children[childIndex];
-
-            child.parameterValues = Object.assign({}, child.parameterValues, newValues);
-
-            children[childIndex] = child;
-            setDefinition({...definition, children: children})
+            setChildDefinition({...child, parameterValues: Object.assign({}, child.parameterValues, newValues)});
           }
         };
       }
     }
 
-    return {...obj, [key]: makeUnit(definition, editor)}
-  }, {});
+    let Unit = makeUnit(definition, editor);
+    Unit.displayName = key.toString();
 
-  const _ROOT = Symbol("root");
+    return {...obj, [key]: Unit}
+  }, {});
 
   const getUnit = (key: symbol): Unit => { return units[key] };
   
@@ -98,8 +110,6 @@ const DevelopmentEnvironment = () => {
 
     const rootEditor = {
       editing, setEditing,
-      select: () => { selectUnit(_ROOT); selectUnitUsage(i) },
-      selected: selectedUnit === _ROOT && selectedUnitUsage === i,
 
       setParameters(newValues: ValueDefinitionsForChildParameters) {
         const roots = app.roots.slice();
@@ -113,7 +123,7 @@ const DevelopmentEnvironment = () => {
       return {...obj, [prop]: root.props[prop].constant}
     }, {})
     
-    return <Unit props={props} getUnit={getUnit} classes={classes} usageEditor={rootEditor} key={i} />
+    return <Unit props={props} getUnit={getUnit} classes={classes} usageEditor={rootEditor} key={i}/>
   })
 }
 
