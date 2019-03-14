@@ -33,5 +33,3 @@ For developers, Reactor...
 Reactor is built on the abstraction of units, which map directly to React components. 
 The main difference is that units can be defined using a flat data structure, allowing
 them to be edited as data.
-
-Switching between visual design and code is simple:
